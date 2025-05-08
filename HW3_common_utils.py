@@ -5,6 +5,11 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegressionCV
+from sklearn.metrics import accuracy_score, classification_report
+from sklearn.model_selection import  GridSearchCV, StratifiedShuffleSplit
+from datetime import datetime
 
 def load_csv_data(file_path):
     df = pd.read_csv(file_path)
@@ -26,9 +31,6 @@ def apply_pca(X_train, X_test, variance_ratio=0.8):
     X_train_pca = pca.fit_transform(X_train)
     X_test_pca = pca.transform(X_test)
     return X_train_pca, X_test_pca, pca
-
-from sklearn.linear_model import LogisticRegressionCV
-from sklearn.metrics import accuracy_score, classification_report
 
 def run_logistic_regression_cv(
     X_train, X_test, y_train, y_test,
@@ -63,7 +65,6 @@ def run_logistic_regression_cv(
         tol=tol,
         max_iter=max_iter,
         verbose=verbose
-        # multi_class 參數已移除，避免 FutureWarning
     )
 
     clf.fit(X_train, y_train)
@@ -77,7 +78,7 @@ def run_logistic_regression_cv(
         print(f"Best C = {clf.C_}")
         print(f"Training Accuracy: {train_score:.2%}")
         print(f"Testing Accuracy : {test_score:.2%}")
-        print(classification_report(y_test, y_pred))
+        #print(classification_report(y_test, y_pred))
 
     return {
         'model': clf,
@@ -86,3 +87,46 @@ def run_logistic_regression_cv(
         'test_acc': test_score,
         'y_pred': y_pred
     }
+
+def run_logistic_gridcv(
+    X_train, y_train,
+    param_grid=None,
+    tol=1e-6,
+    max_iter=int(1e6),
+    n_splits=5,
+    test_size=0.3,
+    random_state=0,
+    scoring='accuracy'
+):
+    """
+    執行 Logistic Regression 的 GridSearchCV，只輸出三項：最佳參數、分數、最佳模型。
+
+    Returns:
+    - best_params_: 最佳參數組合
+    - best_score_: 交叉驗證下的最佳準確率
+    - best_estimator_: 最佳模型物件
+    """
+    if param_grid is None:
+        param_grid = {
+            'solver': ['lbfgs'],
+            'C': [1.0]
+        }
+
+    opts = dict(tol=tol, max_iter=max_iter)
+
+    cv = StratifiedShuffleSplit(n_splits=n_splits, test_size=test_size, random_state=random_state)
+
+    grid = GridSearchCV(
+        estimator=LogisticRegression(**opts),
+        param_grid=param_grid,
+        cv=cv,
+        scoring=scoring
+    )
+
+    grid.fit(X_train, y_train)
+
+    print(grid.best_params_)       # e.g. {'C': 0.1, 'solver': 'lbfgs'}
+    print(grid.best_score_)        # e.g. 0.9842
+    print(grid.best_estimator_)    # e.g. LogisticRegression(C=0.1, ...)
+    
+    return grid.best_params_, grid.best_score_, grid.best_estimator_
