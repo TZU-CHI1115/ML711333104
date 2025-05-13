@@ -158,27 +158,18 @@ def run_svm_classification(
     C=1,
     gamma='scale',
     degree=3,
+    tol=1e-6,                    # ← 新增 tol 參數
+    max_iter=int(1e6),          # ← 也建議把 max_iter 拉出來
     use_linear_svc=False,
     print_report=True
 ):
     """
     執行 SVM 分類並統一回傳 dict 格式，支援多 kernel 與 LinearSVC。
-    
-    Parameters:
-    - kernel: 'linear', 'rbf', 'poly'
-    - C: 正則化參數
-    - gamma: kernel 係數（對 rbf, poly 有效）
-    - degree: 多項式次數（對 poly 有效）
-    - use_linear_svc: True 則改用 LinearSVC
-    - print_report: 是否印出測試結果
-
-    Returns:
-    - dict: 包含模型、準確率、預測結果與訓練時間
     """
 
     start_time = time.time()
-    
-    opts = dict(C=C, tol=1e-6, max_iter=int(1e6))
+
+    opts = dict(C=C, tol=tol, max_iter=max_iter)
 
     if use_linear_svc:
         clf = LinearSVC(**opts)
@@ -191,14 +182,12 @@ def run_svm_classification(
     y_pred = clf.predict(X_test_scaled)
     test_acc = accuracy_score(y_test, y_pred)
 
-    end_time = time.time()
-    elapsed_time = end_time - start_time
+    elapsed_time = time.time() - start_time
 
     if print_report:
         print(f"SVM Classification ({kernel_used})")
         print(f"Test Accuracy: {test_acc:.2%}")
         print(f"Elapsed Time: {elapsed_time:.2f} seconds")
-        #print(classification_report(y_test, y_pred))
 
     return {
         'model': clf,
@@ -206,6 +195,7 @@ def run_svm_classification(
         'y_pred': y_pred,
         'elapsed_time': elapsed_time
     }
+
 
 
 def run_mlp_classifier(
@@ -270,3 +260,23 @@ def plot_mlp_loss_curve(model):
         plt.ylabel('Loss')
         plt.grid(True)
         plt.show()
+
+def plot_mlp_confusion_matrix(model, X_test, y_test):
+    """
+    繪製 MLP 的混淆矩陣。
+    """
+    fig, ax = plt.subplots(1, 1, figsize=(12, 12))  # 小一點的圖
+    score = 100 * model.score(X_test, y_test)
+    title = 'Testing score = {:.2f}%'.format(score)
+    disp = ConfusionMatrixDisplay.from_estimator(
+        model,
+        X_test,
+        y_test,
+        xticks_rotation=45,
+        cmap=plt.cm.Blues,
+        normalize='true',
+        ax=ax
+    )
+    disp.ax_.set_title(title)
+    plt.tight_layout()
+    plt.show()
